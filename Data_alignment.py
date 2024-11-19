@@ -9,7 +9,26 @@ from torchvision import transforms
 import hashlib
 from PIL import Image, ImageDraw
 import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
+from matplotlib.colors import ListedColormap
 
+name_mapping = {
+    "Implanted_mouse": 1,
+    "Implanted_BAT": 2,
+    "Implanted_rump": 3 # ,
+    # "Extra_mouse": 4,
+    # "Extra_BAT": 5,
+    # "Extra_rump": 6,
+}
+
+# Function to apply the mapping
+def replace_names(name, name_mapping):
+    # If the name exists in the mapping, replace it
+    if name in name_mapping:
+        return name_mapping[name]
+    else:
+        print(f"Warning: '{name}' not found in name_mapping.")
 
 def prepare_dataloader(csv_directory, segments_dirs, image_directory, batch_size=4, val_split=0.2):
     """
@@ -130,6 +149,8 @@ def prepare_dataloader(csv_directory, segments_dirs, image_directory, batch_size
         for annotation in annotations:
             if 'bounding_box' in annotation and 'polygon' in annotation:
                 name = annotation['name']
+                # Apply the mapping
+                class_id = replace_names(name, name_mapping)
                 bounding_box = annotation['bounding_box']
 
                 # Convert bounding box format from {"h": h, "w": w, "x": x, "y": y} to [x_min, y_min, x_max, y_max]
@@ -153,7 +174,7 @@ def prepare_dataloader(csv_directory, segments_dirs, image_directory, batch_size
                 })
 
                 unsummarized_data.append({
-                    "name": name,
+                    "labels": class_id,
                     "bounding_box": converted_bounding_box,
                     "mask": mask  # Store the full mask tensor here
                 })
@@ -248,7 +269,6 @@ def prepare_dataloader(csv_directory, segments_dirs, image_directory, batch_size
 
         def __getitem__(self, idx):
             img_name = self.image_files[idx]
-
             img_path = os.path.join(self.images_dir, img_name)
             image = Image.open(img_path).convert("RGB")
             image = transforms.ToTensor()(image)
@@ -268,10 +288,14 @@ def prepare_dataloader(csv_directory, segments_dirs, image_directory, batch_size
             # Extract bounding boxes and masks
             boxes = torch.tensor([seg['bounding_box'] for seg in segmentation], dtype=torch.float32)
             masks = []  # Initialize an empty list for masks
+            labels = []
 
             for seg in segmentation:
                 if 'mask' in seg:  # Ensure that 'mask' exists and is a proper binary mask
-                    mask = torch.tensor(seg['mask'], dtype=torch.float32)
+                    if isinstance(seg['mask'], torch.Tensor):
+                        mask = seg['mask'].clone().detach().float()
+                    else:
+                        mask = torch.tensor(seg['mask'], dtype=torch.float32)
                     masks.append(mask)
                 else:
                     # Placeholder for missing mask data or incorrect mask loading
@@ -279,13 +303,21 @@ def prepare_dataloader(csv_directory, segments_dirs, image_directory, batch_size
                     mask = torch.zeros(mask_shape, dtype=torch.float32)
                     masks.append(mask)
 
+                labels.append(seg['labels'])
+
             # Stack the masks into a tensor
             masks = torch.stack(masks) if masks else torch.zeros((0, *image.shape[1:]), dtype=torch.float32)
+            # Stack labels into a tensor but leave possibility of empty image
+            if labels:
+                labels = torch.stack([torch.tensor(label, dtype=torch.int64) for label in labels])
+            else:
+                # Handle case where labels are empty, for instance by creating an empty tensor
+                labels = torch.empty(0, dtype=torch.int64)
 
             target = {
                 'boxes': boxes,
                 'masks': masks,
-                'labels': torch.tensor([1 for _ in segmentation], dtype=torch.int64),  # Assuming single class
+                'labels': labels
             }
 
             # Check if the number of boxes matches the number of masks
@@ -337,6 +369,45 @@ def prepare_dataloader(csv_directory, segments_dirs, image_directory, batch_size
             # Return image and keypoints separately
             return image.squeeze(0), target, skeleton_data['keypoints']
 
+        def visualize_sample(self, idx):
+            """
+            Visualizes the image, bounding boxes, masks, and labels for a given index.
+            Args:
+                idx (int): Index of the sample to visualize.
+            """
+            image, target, _ = self[idx]
+            fig, ax = plt.subplots(1, figsize=(12, 8))
+
+            # Display the image
+            ax.imshow(image.permute(1, 2, 0).cpu().numpy())
+
+            # Define colormap for masks and labels
+            colormap = plt.get_cmap('Set1')
+
+            # Plot bounding boxes, masks, and labels
+            for box, mask, label in zip(target['boxes'], target['masks'], target['labels']):
+                # Plot bounding box
+                x_min, y_min, x_max, y_max = box
+                rect = patches.Rectangle(
+                    (x_min, y_min), x_max - x_min, y_max - y_min,
+                    linewidth=2, edgecolor='orange', facecolor='none'
+                )
+                ax.add_patch(rect)
+
+                # Display label
+                label_name = list(name_mapping.keys())[list(name_mapping.values()).index(label.item())]
+                ax.text(
+                    x_min, y_min - 5, label_name,
+                    color='white', fontsize=12, bbox=dict(facecolor='orange', edgecolor='none', pad=2)
+                )
+
+                # Display mask
+                mask = mask.squeeze(0).cpu().numpy()  # Remove channel dimension and convert to numpy
+                ax.imshow(mask, alpha=0.3, cmap=colormap, interpolation='none')
+
+            plt.axis('off')
+            plt.show()
+
     segment_datasets = []
     skeleton_datasets = []
     for dir in os.listdir(segments_dirs):
@@ -356,10 +427,12 @@ def prepare_dataloader(csv_directory, segments_dirs, image_directory, batch_size
 
             # Create the dataset and add it to the list
             segment_data = MouseDataset(aligned_segmentation_data, aligned_skeleton_data, image_dir)
+            ##### Visualize ground truth to ensure it is being loaded correctly
+            # segment_data.visualize_sample(0)
+            #####
             segment_datasets.append(segment_data)
             skeleton_datasets.append(segment_data)  # Also adding to skeleton_datasets
 
-    # Concatenate datasets
     combined_segment = ConcatDataset(segment_datasets)
 
     # Split the dataset into training and validation
