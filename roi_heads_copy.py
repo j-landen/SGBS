@@ -199,7 +199,6 @@ def _onnx_heatmaps_to_keypoints(
         0,
     )
 
-    # TODO: simplify when indexing without rank will be supported by ONNX
     base = num_keypoints * num_keypoints + num_keypoints + 1
     ind = torch.arange(num_keypoints)
     ind = ind.to(dtype=torch.int64) * base
@@ -448,7 +447,6 @@ def _onnx_paste_mask_in_image(mask, box, im_h, im_w):
 
     unpaded_im_mask = mask[(y_0 - box[1]) : (y_1 - box[1]), (x_0 - box[0]) : (x_1 - box[0])]
 
-    # TODO : replace below with a dynamic padding when support is added in ONNX
 
     # pad y
     zeros_y0 = torch.zeros(y_0, unpaded_im_mask.size(1))
@@ -741,7 +739,6 @@ class RoIHeads(nn.Module):
         """
         if targets is not None:
             for t in targets:
-                # TODO: https://github.com/pytorch/pytorch/issues/26731
                 floating_point_types = (torch.float, torch.double, torch.half)
                 if not t["boxes"].dtype in floating_point_types:
                     raise TypeError(f"target boxes must of float type, instead got {t['boxes'].dtype}")

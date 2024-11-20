@@ -88,7 +88,6 @@ class CustomMaskRCNN(MaskRCNN):
             _, C2, C3, C4, C5 = resnet_graph(input_image, config.BACKBONE,
                                              stage5=True, train_bn=config.TRAIN_BN)
         # Top-down Layers
-        # TODO: add assert to varify feature map sizes match what's in config
         P5 = KL.Conv2D(config.TOP_DOWN_PYRAMID_SIZE, (1, 1), name='fpn_c5p5')(C5)
         P4 = KL.Add(name="fpn_p4add")([
             KL.UpSampling2D(size=(2, 2), name="fpn_p5upsampled")(P5),
@@ -116,7 +115,6 @@ class CustomMaskRCNN(MaskRCNN):
         if mode == "training":
             anchors = self.get_anchors(config.IMAGE_SHAPE)
             # Duplicate across the batch dimension because Keras requires it
-            # TODO: can this be optimized to avoid duplicating the anchors?
             anchors = np.broadcast_to(anchors, (config.BATCH_SIZE,) + anchors.shape)
             # A hack to get around Keras's bad support for constants
             anchors = KL.Lambda(lambda x: tf.Variable(anchors), name="anchors")(input_image)
@@ -178,7 +176,6 @@ class CustomMaskRCNN(MaskRCNN):
                     target_rois, input_gt_class_ids, gt_boxes, input_gt_masks])
 
             # Network Heads
-            # TODO: verify that this handles zero padded ROIs
             mrcnn_class_logits, mrcnn_class, mrcnn_bbox =\
                 fpn_classifier_graph(rois, mrcnn_feature_maps, input_image_meta,
                                      config.POOL_SIZE, config.NUM_CLASSES,
@@ -191,7 +188,6 @@ class CustomMaskRCNN(MaskRCNN):
                                               config.NUM_CLASSES,
                                               train_bn=config.TRAIN_BN)
 
-            # TODO: clean up (use tf.identify if necessary)
             output_rois = KL.Lambda(lambda x: x * 1, name="output_rois")(rois)
 
             # Losses
