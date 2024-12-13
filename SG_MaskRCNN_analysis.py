@@ -25,7 +25,7 @@ weights_path = os.path.join(save_to_dir, 'sg-mrcnn_epochs_500.pth')
 
 visualize = False  # Whether you would like images to be saved or not (Default = True)
 save_predictions_txt = False  # Whether you would like predictions to be saved to csv file (Default = True)
-combine_predictions_temp = True
+combine_predictions_temp = True # Whether you would like temp for each body part saved as csv
 mask_display_threshold = 0.8
 
 def load_model(weights_path, num_classes):

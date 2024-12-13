@@ -11,7 +11,6 @@ from PIL import Image, ImageDraw
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
-from matplotlib.colors import ListedColormap
 
 name_mapping = {
     "Implanted_mouse": 1,

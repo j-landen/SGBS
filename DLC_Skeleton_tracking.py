@@ -37,7 +37,7 @@ def analyze_videos_in_directory(config_path, directory, videotype):
 ## From each video, pull out 50 frames for annotation (# can be changed in config.yaml)
 #dlc.extract_frames(config_path, mode='automatic', algo='kmeans', userfeedback=False, crop=False)
 
-## Annotate frames of videos  ###########################################
+## Annotate frames of videos  ########################################
 #dlc.label_frames(config_path)
 
 ## Split annotations into training and evaluation datasets

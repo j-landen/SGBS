@@ -3,7 +3,6 @@ import torch
 import torch.nn as nn
 import torchvision
 import json
-import torch.nn.functional as F
 from torchvision.models import resnet50, ResNet50_Weights
 from torchvision.models.detection import MaskRCNN
 from torchvision.models.detection.rpn import AnchorGenerator

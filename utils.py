@@ -7,7 +7,6 @@ import os
 from skimage.transform import resize
 from visualize_copy import display_instances
 import imageio.v3 as iio
-import csv
 
 ########### Custom loss function to better incorporate keypoint info
 '''class CustomLoss(nn.Module):
