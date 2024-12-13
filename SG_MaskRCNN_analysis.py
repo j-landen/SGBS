@@ -23,7 +23,8 @@ temperature_folder = r'F:\Seq_results' # Folder where seq_process output is save
 # Path to saved weights
 weights_path = os.path.join(save_to_dir, 'sg-mrcnn_epochs_500.pth')
 
-visualize = False  # Whether you would like images to be saved or not (Default = True)
+visualize = True  # Whether you would like images to be saved or not (Default = True)
+visualize_every_n_images = 100 # IF visualize = true, subset # of images saved
 save_predictions_txt = False  # Whether you would like predictions to be saved to csv file (Default = True)
 combine_predictions_temp = True # Whether you would like temp for each body part saved as csv
 mask_display_threshold = 0.8
@@ -78,7 +79,7 @@ def analyze_images(model, video_name, image_folder, keypoints_loader, save_to_di
 
     combined_temp_stats = []
     # Process each image in the folder
-    for image_file in tqdm(os.listdir(image_folder)):
+    for frame_num, image_file in tqdm(enumerate(os.listdir(image_folder))):
         if not image_file.lower().endswith(('.png', '.jpg', '.jpeg')):
             print(f"Skipping image {image_file}")
             continue
@@ -106,18 +107,21 @@ def analyze_images(model, video_name, image_folder, keypoints_loader, save_to_di
 
         # Visualize and save results (implement your visualization function)
         if visualize is True:
-            visualize_prediction_images(
-                images=image_tensor,
-                predictions=predictions,
-                epoch=video_name,
-                phase="analysis",
-                batch_idx=image_filename,
-                save_img_dir=save_to_dir,
-                class_names=class_names,
-                colors=colors,
-                keypoints=keypoints,
-                threshold=threshold
-            )
+            if (frame_num + 1) % visualize_every_n_images == 0:
+                visualize_prediction_images(
+                    images=image_tensor,
+                    predictions=predictions,
+                    epoch=video_name,
+                    phase="analysis",
+                    batch_idx=image_filename,
+                    save_img_dir=save_to_dir,
+                    class_names=class_names,
+                    colors=colors,
+                    keypoints=keypoints,
+                    threshold=threshold
+                )
+            else:
+                continue
 
         if save_predictions_txt is True:
             save_predictions_to_json(predictions, save_to_dir, videoID=video_name, frameID=image_filename)
