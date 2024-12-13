@@ -69,11 +69,11 @@ def random_colors(N, bright=True):
     return colors
 
 
-def apply_mask(image, mask, color, alpha=0.5):
+def apply_mask(image, mask, color, alpha=0.5, threshold=0.8):
     """Apply the given mask to the image.
     """
     for c in range(3):
-        image[:, :, c] = np.where(mask == 1,
+        image[:, :, c] = np.where(mask >= threshold,
                                   image[:, :, c] *
                                   (1 - alpha) + alpha * color[c] * 255,
                                   image[:, :, c])
@@ -81,10 +81,10 @@ def apply_mask(image, mask, color, alpha=0.5):
 
 
 def display_instances(image, boxes, masks, class_ids, class_names,
-                      keypoints=None, scores=None, title="",
+                      keypoints=None, scores=None,
                       figsize=(16, 16), ax=None,
                       show_mask=True, show_bbox=True,
-                      colors=None, captions=None, save_to_file=None):
+                      colors=None, captions=None, save_to_file=None, threshold=0.8):
     """
     boxes: [num_instance, (y1, x1, y2, x2, class_id)] in image coordinates.
     masks: [height, width, num_instances]
@@ -92,7 +92,6 @@ def display_instances(image, boxes, masks, class_ids, class_names,
     class_names: list of class names of the dataset
     keypoints: (optional) [num_instance, num_keypoints, 3] in (x, y, visibility) format.
     scores: (optional) confidence scores for each box
-    title: (optional) Figure title
     show_mask, show_bbox: To show masks and bounding boxes or not
     figsize: (optional) the size of the image
     colors: (optional) An array or colors to use with each object
@@ -115,12 +114,11 @@ def display_instances(image, boxes, masks, class_ids, class_names,
     # Generate random colors
     colors = colors or random_colors(N)
 
-    # Show area outside image boundaries.
+    # Show area outside image boundaries.  We want this off
     height, width = image.shape[:2]
-    ax.set_ylim(height + 10, -10)
-    ax.set_xlim(-10, width + 10)
+    ax.set_ylim(height)
+    ax.set_xlim(width)
     ax.axis('off')
-    ax.set_title(title)
 
     masked_image = image.astype(np.uint32).copy()
     for i in range(N):
@@ -146,24 +144,24 @@ def display_instances(image, boxes, masks, class_ids, class_names,
         else:
             caption = captions[i]
         ax.text(x1, y1 + 8, caption,
-                color='w', size=11, backgroundcolor="none")
+                color=color, size=11, backgroundcolor="none")
 
         # Mask
         mask = masks[:, :, i]
         if show_mask:
-            masked_image = apply_mask(masked_image, mask, color)
+            masked_image = apply_mask(masked_image, mask, color, threshold)
 
         # Mask Polygon
         # Pad to ensure proper polygons for masks that touch image edges.
-        padded_mask = np.zeros(
-            (mask.shape[0] + 2, mask.shape[1] + 2), dtype=np.uint8)
-        padded_mask[1:-1, 1:-1] = mask
-        contours = find_contours(padded_mask, 0.5)
-        for verts in contours:
-            # Subtract the padding and flip (y, x) to (x, y)
-            verts = np.fliplr(verts) - 1
-            p = Polygon(verts, facecolor="none", edgecolor=color)
-            ax.add_patch(p)
+#        padded_mask = np.zeros(
+#            (mask.shape[0] + 2, mask.shape[1] + 2), dtype=np.uint8)
+#        padded_mask[1:-1, 1:-1] = mask
+#        contours = find_contours(padded_mask, 0.5)
+#        for verts in contours:
+#            # Subtract the padding and flip (y, x) to (x, y)
+#            verts = np.fliplr(verts) - 1
+#            p = Polygon(verts, facecolor="none", edgecolor=color)
+#            ax.add_patch(p)
 
         # Draw keypoints
         if keypoints is not None:
@@ -171,15 +169,15 @@ def display_instances(image, boxes, masks, class_ids, class_names,
                 kp_x, kp_y, kp_vis = kp
 
                 if kp_vis > 0:  # Only plot visible keypoints
-                    ax.plot(kp_x, kp_y, 'o', color=color, markersize=8)  # Keypoint as a circle
-                    ax.text(kp_x, kp_y, f"{kp_x:.1f},{kp_y:.1f}", fontsize=6, color='yellow')
+                    ax.plot(kp_x, kp_y, 'o', color="gray", markersize=4)  # Keypoint as a circle
+                    # ax.text(kp_x, kp_y, f"{kp_x:.1f},{kp_y:.1f}", fontsize=6, color='yellow')  # Keypoints coordinates
 
     ax.imshow(masked_image.astype(np.uint8))
 
     # Save the figure if save_to_file is provided
     if save_to_file:
         os.makedirs(os.path.dirname(save_to_file), exist_ok=True)
-        plt.savefig(save_to_file, bbox_inches='tight', pad_inches=0.1)
+        plt.savefig(save_to_file, bbox_inches='tight', pad_inches=0)
 
     elif auto_show:
         plt.show()

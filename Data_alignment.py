@@ -30,6 +30,35 @@ def replace_names(name, name_mapping):
     else:
         print(f"Warning: '{name}' not found in name_mapping.")
 
+
+def load_skeleton_data(csv_directory, video_file_name):
+    # Identify the csv file we are looking for
+    pattern = os.path.join(csv_directory, f"{video_file_name}*.csv")
+    matching_files = glob.glob(pattern)
+
+    # Load the CSV file
+    keypoints_data = pd.read_csv(matching_files[0], header=None, skiprows=4)
+
+    # Extract the first three rows as metadata
+    individuals = pd.read_csv(matching_files[0], header=None, skiprows=1, nrows=1).iloc[0, 1:].values
+    body_parts = pd.read_csv(matching_files[0], header=None, skiprows=2, nrows=1).iloc[0, 1:].values
+    coords_types = pd.read_csv(matching_files[0], header=None, skiprows=3, nrows=1).iloc[0, 1:].values
+
+    # Create a dictionary to hold the coordinates and likelihoods for each body part
+    keypoints_dict = {}
+
+    # Iterate through the individuals, body parts, and coordinate types
+    for i, (individual, part, coord_type) in enumerate(zip(individuals, body_parts, coords_types)):
+        if individual not in keypoints_dict:
+            keypoints_dict[individual] = {}
+        if part not in keypoints_dict[individual]:
+            keypoints_dict[individual][part] = {"x": [], "y": [], "likelihood": []}
+
+        # Populate the dictionary with the appropriate data
+        keypoints_dict[individual][part][coord_type] = pd.to_numeric(keypoints_data.iloc[:, i + 1],
+                                                                     errors='coerce').values
+    return keypoints_dict
+
 def prepare_dataloader(csv_directory, segments_dirs, image_directory, batch_size=4, val_split=0.2):
     """
     Prepare DataLoaders for training and validation by aligning segmentation and skeleton data, and loading images.
@@ -67,35 +96,6 @@ def prepare_dataloader(csv_directory, segments_dirs, image_directory, batch_size
         batched_skeletons = torch.stack(skeletons, dim=0)  # Shape: [batch_size, 3, H, W]
 
         return batched_images, batched_segments, batched_skeletons
-
-    def load_skeleton_data(csv_directory, video_file_name):
-        # Identify the csv file we are looking for
-        pattern = os.path.join(csv_directory, f"{video_file_name}*.csv")
-        matching_files = glob.glob(pattern)
-
-        # Load the CSV file
-        keypoints_data = pd.read_csv(matching_files[0], header=None, skiprows=4)
-
-        # Extract the first three rows as metadata
-        individuals = pd.read_csv(matching_files[0], header=None, skiprows=1, nrows=1).iloc[0, 1:].values
-        body_parts = pd.read_csv(matching_files[0], header=None, skiprows=2, nrows=1).iloc[0, 1:].values
-        coords_types = pd.read_csv(matching_files[0], header=None, skiprows=3, nrows=1).iloc[0, 1:].values
-
-        # Create a dictionary to hold the coordinates and likelihoods for each body part
-        keypoints_dict = {}
-
-        # Iterate through the individuals, body parts, and coordinate types
-        for i, (individual, part, coord_type) in enumerate(zip(individuals, body_parts, coords_types)):
-            if individual not in keypoints_dict:
-                keypoints_dict[individual] = {}
-            if part not in keypoints_dict[individual]:
-                keypoints_dict[individual][part] = {"x": [], "y": [], "likelihood": []}
-
-            # Populate the dictionary with the appropriate data
-            keypoints_dict[individual][part][coord_type] = pd.to_numeric(keypoints_data.iloc[:, i + 1],
-                                                                         errors='coerce').values
-
-        return keypoints_dict
 
     def load_segmentation_data(json_dir):
         segmentation_data = {}
@@ -445,3 +445,93 @@ def prepare_dataloader(csv_directory, segments_dirs, image_directory, batch_size
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, collate_fn=custom_collate)
 
     return train_loader, val_loader
+
+
+
+######################################
+# Keypoint loader for analysis
+######################################
+def prepare_keypoints_for_analysis(csv_directory, image_directory):
+    """
+    Prepare a DataLoader for analysis mode, loading only images and their corresponding skeleton keypoints.
+
+    Args:
+        csv_directory (str): Directory containing CSV files with skeleton data.
+        image_directory (str): Directory containing images corresponding to the frames.
+        batch_size (int): Number of samples per batch.
+
+    Returns:
+        DataLoader: A DataLoader for analysis mode.
+    """
+
+    class KeypointsDataset(Dataset):
+        def __init__(self, skeleton_data, images_dir, transforms=None):
+            self.skeleton_data = skeleton_data
+            self.images_dir = images_dir
+            self.transforms = transforms
+
+            # Ensure the keys in skeleton data correspond to available image files
+            self.image_files = [
+                f for f in os.listdir(images_dir) if f.endswith('.png')
+            ]
+            print(f"Filtered image files: {self.image_files[:10]}")
+
+        def __len__(self):
+            return len(self.image_files)
+
+        def __getitem__(self, idx):
+            img_name = self.image_files[idx]
+            img_path = os.path.join(self.images_dir, img_name)
+            image = Image.open(img_path).convert("RGB")
+            image = transforms.ToTensor()(image)
+
+            if self.transforms:
+                image = self.transforms(image)
+
+            # Add a batch dimension to the image
+            if image.dim() == 3:  # Check if image is 3D
+                image = image.unsqueeze(0)
+
+            # Extract the frame index from the image name
+            frame_index = int(img_name.split('_')[1].split('.')[0])
+
+            # Gather keypoints for this frame
+            keypoints = []
+            for group, body_parts in self.skeleton_data.items():
+                for part, coords in body_parts.items():
+                    # Extract the x, y, likelihood for the specific frame
+                    x = coords['x'][frame_index] if frame_index < len(coords['x']) else float('nan')
+                    y = coords['y'][frame_index] if frame_index < len(coords['y']) else float('nan')
+                    likelihood = coords['likelihood'][frame_index] if frame_index < len(coords['likelihood']) else 0.0
+                    keypoints.append([x, y, likelihood])
+
+
+            # Convert keypoints to a tensor
+            keypoints_tensor = torch.tensor(keypoints, dtype=torch.float32) if keypoints else torch.zeros((0, 3))
+
+            return image.squeeze(0), keypoints_tensor
+
+    # Load skeleton data from CSV files
+    skeleton_datasets = []
+    for dir in os.listdir(image_directory):
+        skeleton_data = load_skeleton_data(csv_directory, dir)
+        image_dir = os.path.join(image_directory, dir)
+        print(f"Analyzing images from: {image_dir}")
+
+        if not skeleton_data:
+            print(f"No valid skeleton data found in directory: {dir}")
+            continue
+
+        # Create a dataset for skeleton data
+        skeleton_dataset = KeypointsDataset(skeleton_data, image_dir)
+        print(f"Keypoints found for {len(skeleton_dataset)} frames")
+        skeleton_datasets.append(skeleton_dataset)
+
+    # Combine datasets
+    combined_dataset = ConcatDataset(skeleton_datasets)
+    # Create DataLoader
+    data_loader = DataLoader(combined_dataset, batch_size=1, shuffle=False)
+
+    return data_loader
+
+

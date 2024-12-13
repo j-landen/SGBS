@@ -6,9 +6,11 @@ import matplotlib.pyplot as plt
 import os
 from skimage.transform import resize
 from visualize_copy import display_instances
+import imageio.v3 as iio
+import csv
 
 ########### Custom loss function to better incorporate keypoint info
-class CustomLoss(nn.Module):
+'''class CustomLoss(nn.Module):
     def __init__(self, lambda_coord=1.0):
         super(CustomLoss, self).__init__()
         self.lambda_coord = lambda_coord
@@ -65,6 +67,8 @@ class CustomLoss(nn.Module):
                     penalty += (kp_y - y_max) ** 2
 
         return penalty
+'''
+
 
 ########### Convert keypoints to heat maps
 def gaussian_kernel(size, sigma):
@@ -111,6 +115,7 @@ def keypoints_to_heatmaps(keypoints, H, W, kernel_size=7, sigma=2):
                                          padding=kernel_size // 2).squeeze()
 
     return heatmap
+
 
 ########### Filter each class by highest confidence so we only get one output for each class
 def filter_duplicate_classes(predictions):
@@ -159,10 +164,8 @@ def filter_duplicate_classes(predictions):
 
 
 ################## Visualize final output
-def visualize_prediction_images(images, segments, predictions, epoch, batch_idx, phase, save_img_dir, class_names,
-                          keypoints=None):
-    print(f"Visualizing predictions for batch {batch_idx} in phase {phase}")
-
+def visualize_prediction_images(images, predictions, epoch, batch_idx, phase, save_img_dir, class_names,
+                                colors, keypoints=None, threshold=0.8):
     # Handle tuple structure if predictions come as (list, dict)
     if isinstance(predictions, tuple):
         predictions = predictions[0]  # Extract the list of predictions from the tuple
@@ -172,7 +175,7 @@ def visualize_prediction_images(images, segments, predictions, epoch, batch_idx,
         return
 
     # Iterate through each image and its corresponding prediction
-    for i, (image, segment, prediction) in enumerate(zip(images, segments, predictions)):
+    for i, (image, prediction) in enumerate(zip(images, predictions)):
         # Convert tensors to numpy arrays
         image_np = image.permute(1, 2, 0).cpu().numpy()
 
@@ -183,10 +186,8 @@ def visualize_prediction_images(images, segments, predictions, epoch, batch_idx,
             image_np = np.clip(image_np, 0, 255).astype(np.uint8)
 
         pred_boxes = prediction['boxes'].cpu().numpy()
-        print(f"Boxes for image {i}: {pred_boxes}")
         pred_masks = prediction['masks'].cpu().numpy()
         pred_class_ids = prediction['labels'].cpu().numpy()
-        print(f"Classes for image {i}: {pred_class_ids}")
         pred_scores = prediction['scores'].cpu().numpy()
 
         ## Squeeze and transpose masks to ensure correct shape
@@ -214,8 +215,14 @@ def visualize_prediction_images(images, segments, predictions, epoch, batch_idx,
             kp_coords = None
 
         # Create dir for saving
-        os.makedirs(f"{save_img_dir}/{phase}/epoch{epoch}", exist_ok=True)
-        save_plot_dir = os.path.join(f"{save_img_dir}/{phase}/epoch{epoch}/batch_{batch_idx}_image_{i}.png")
+        if phase == "validate":
+            os.makedirs(f"{save_img_dir}/{phase}/epoch{epoch}", exist_ok=True)
+            save_plot_dir = os.path.join(f"{save_img_dir}/{phase}/epoch{epoch}/batch_{batch_idx}_image_{i}.png")
+        elif phase == "analysis":
+            os.makedirs(f"{save_img_dir}/{phase}/{epoch}", exist_ok=True)
+            save_plot_dir = os.path.join(f"{save_img_dir}/{phase}/{epoch}/{batch_idx}.png")
+        else:
+            print("Variable phase invalid. Should be either 'validate' or 'analysis'.")
 
         # Display the image with predictions using Matterport's display_instances
         fig, ax = plt.subplots(1, figsize=(16, 16))
@@ -227,9 +234,130 @@ def visualize_prediction_images(images, segments, predictions, epoch, batch_idx,
             class_names=class_names,
             keypoints=kp_coords,
             scores=pred_scores,
-            title=f"Epoch: {epoch}, Batch: {batch_idx}, Image: {i}",
             ax=ax,
             show_mask=True,  # Ensure masks are shown
             show_bbox=True,  # Ensure boxes are shown
-            save_to_file=save_plot_dir
+            save_to_file=save_plot_dir,
+            colors=colors,
+            threshold=threshold
         )
+
+
+############################################################
+## Combine temperature data (from tiff files) with predictions from MRCNN
+
+# Convert tiff temperature file to usable temperatures
+def tiff2temp(array_path):
+    array = iio.imread(array_path)
+    array = array.astype(np.float64)
+
+    # Convert from raw to kelvin
+    array *= .04
+    # Convert from kelvin to Celsius
+    array += -273.15
+
+    # Round to three digits
+    array = np.round(array, decimals=4)
+
+    # Save array as .txt file
+    return array
+
+
+# Extract temperatures from prediction coordinates
+def save_temperature_stats(images, predictions, temperature_array, frameID, threshold, class_names):
+    """
+    Save temperature statistics (mean and SD) for each bounding box into a CSV file.
+
+    Args:
+        predictions (list): List of predictions containing 'boxes' and 'labels'.
+        temperature_data (numpy.ndarray): Temperature data (H x W) matching the image dimensions.
+    """
+    results = []
+
+    # Iterate through each image and its corresponding prediction
+    for i, (image, prediction) in enumerate(zip(images, predictions)):
+        # Convert tensors to numpy arrays
+        image_np = image.permute(1, 2, 0).cpu().numpy()
+
+        # Normalize the image to the 0-255 range if necessary
+        if image_np.max() <= 1.0:
+            image_np = (image_np * 255).astype(np.uint8)
+        elif image_np.max() > 255.0:
+            image_np = np.clip(image_np, 0, 255).astype(np.uint8)
+
+        pred_boxes = prediction['boxes'].cpu().numpy()
+        pred_masks = prediction['masks'].cpu().numpy()
+        pred_class_ids = prediction['labels'].cpu().numpy()
+
+        ## Squeeze and transpose masks to ensure correct shape
+        pred_masks = pred_masks.squeeze(1)  # Change shape to (47, 28, 28)
+        pred_masks_resized = np.zeros((image_np.shape[0], image_np.shape[1], pred_masks.shape[0]), dtype=np.float32)
+
+        # Resize each mask to the image size
+        for j in range(pred_masks.shape[0]):
+            pred_masks_resized[:, :, j] = resize(pred_masks[j, :, :], (image_np.shape[0], image_np.shape[1]),
+                                                 mode='constant', preserve_range=True, anti_aliasing=False)
+
+        assert pred_boxes.shape[0] == pred_masks_resized.shape[-1] == pred_class_ids.shape[0]
+
+        # Number of instances
+        N = pred_boxes.shape[0]
+        if not N:
+            print("\n*** No boxes to display *** \n")
+        else:
+            assert pred_boxes.shape[0] == pred_masks_resized.shape[-1] == pred_class_ids.shape[0]
+
+        for i in range(N):
+            class_id = pred_class_ids[i]
+            label = class_names[class_id]
+
+            # Bounding box
+            if not np.any(pred_boxes[i]):
+                # Skip this instance. Has no bbox.
+                continue
+            x_min, y_min, x_max, y_max = np.round(pred_boxes[i]).astype(int)
+
+            # Crop the temperature region corresponding to the bounding box
+            cropped_temp = temperature_array[y_min:y_max, x_min:x_max]
+
+            if cropped_temp.size > 0:  # Ensure the cropped region is not empty
+                mean_box_temp = np.mean(cropped_temp)
+                std_box_temp = np.std(cropped_temp)
+                min_box_temp = np.min(cropped_temp)
+                max_box_temp = np.max(cropped_temp)
+            else:
+                mean_box_temp = np.nan
+                std_box_temp = np.nan
+                min_box_temp = np.nan
+                max_box_temp = np.nan
+
+            # Mask
+            mask = pred_masks_resized[:, :, i]
+            mask_temp = temperature_array[mask > threshold]
+
+            if mask_temp.size > 0:  # Ensure the mask region is not empty
+                mean_mask_temp = np.mean(mask_temp)
+                std_mask_temp = np.std(mask_temp)
+                min_mask_temp = np.min(mask_temp)
+                max_mask_temp = np.max(mask_temp)
+            else:
+                print(f"Mask region empty for frame {frameID}")
+                mean_mask_temp = np.nan
+                std_mask_temp = np.nan
+                min_mask_temp = np.nan
+                max_mask_temp = np.nan
+
+            # Append results
+            results.append({
+                'Frame': frameID,
+                'Label': label,
+                'Mean_box_temperature': mean_box_temp,
+                'SD_box_temperature': std_box_temp,
+                'Min_box_temperature': min_box_temp,
+                'Max_box_temperature': max_box_temp,
+                'Mean_mask_temperature': mean_mask_temp,
+                'SD_mask_temperature': std_mask_temp,
+                'Min_mask_temperature': min_mask_temp,
+                'Max_mask_temperature': max_mask_temp
+            })
+        return results
