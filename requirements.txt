@@ -3,10 +3,15 @@ torchvision
 torchaudio
 numpy
 pandas
+glob
 matplotlib
+os
 Pillow
 scikit-image
 tqdm
 deeplabcut
 imageio
-json5
+json
+csv
+hashlib
+PIL
