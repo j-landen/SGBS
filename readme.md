@@ -1,16 +1,15 @@
-# **Skeleton-Guided Mask R-CNN for Thermal Imaging**
+# **Skeleton-Guided Bodypart Segmentation for Thermal Imaging**
 
 ## **Overview**
-This project integrates **DeepLabCut (DLC)** skeleton tracking with **Mask R-CNN** to improve object segmentation in thermal imaging. The goal is to use skeleton keypoints as guidance to enhance mask predictions, making it useful for tracking implanted mice and other objects in **high-resolution thermal videos**.
+This project integrates **DeepLabCut (DLC)** skeleton tracking with **Mask R-CNN** to improve object segmentation in thermal imaging. The goal is to use skeleton keypoints as guidance to enhance mask predictions, making it useful for tracking body regions in mice or other animals in **high-resolution thermal videos**.
 
 ---
 
 ## **Project Structure**
 ```
-/Skeleton-Guided-Segmentation
+/sgbs
 │── /docs/                     # Documentation for the project
 │── /data/                     # Folder for datasets (if applicable)
-│── /notebooks/                # Jupyter notebooks for experiments
 │── /src/                      # Source code folder
 │    │── __init__.py           # Initializes Python package
 │    │── data/                 
