@@ -7,10 +7,9 @@ This project integrates **DeepLabCut (DLC)** skeleton tracking with **Mask R-CNN
 
 ## **Project Structure**
 ```
-/Skeleton-Guided-Segmentation
+/sgbs
 │── /docs/                     # Documentation for the project
 │── /data/                     # Folder for datasets (if applicable)
-│── /notebooks/                # Jupyter notebooks for experiments
 │── /src/                      # Source code folder
 │    │── __init__.py           # Initializes Python package
 │    │── data/                 
