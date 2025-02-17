@@ -1,0 +1,17 @@
+torch
+torchvision
+torchaudio
+numpy
+pandas
+glob
+matplotlib
+os
+Pillow
+scikit-image
+tqdm
+deeplabcut
+imageio
+json
+csv
+hashlib
+PIL
