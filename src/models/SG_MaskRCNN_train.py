@@ -6,8 +6,9 @@ import json
 from torchvision.models import resnet50, ResNet50_Weights
 from torchvision.models.detection import MaskRCNN
 from torchvision.models.detection.rpn import AnchorGenerator
-from Data_alignment import prepare_dataloader
-from utils import keypoints_to_heatmaps, visualize_prediction_images, filter_duplicate_classes
+from src.data.Data_alignment import prepare_dataloader
+from src.utils.utils import keypoints_to_heatmaps, visualize_prediction_images, filter_duplicate_classes
+import csv
 
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"  # Ignore
 
@@ -15,16 +16,17 @@ os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"  # Ignore
 csv_directory = r'F:\DLC_thermography-JLanden-2024-07-09\videos' #Keypoints from DLC
 image_directory = r'F:\DLC_thermography-JLanden-2024-07-09\labeled-data' # Images
 segments_dirs = r'F:\Segmentation\training_segments' # Training segments from Darwin
-save_to_dir = r'F:\Segmentation\results_12-05-24_BS8_solo' #Where output is saved
+save_to_dir = r'F:\Segmentation\compare_02-13-25_BS8_check' #Where output is saved
 
 # Parameters
-num_epochs = 500
-validate_every_n_epochs = 100
+num_epochs = 200
+validate_every_n_epochs = 200
 batch_size = 8  # Adjust as needed
 val_split = 0.2  # 20% of the data for validation
 #mask_threshold = 0.5  # 0.5 is normal
-mask_display_threshold = 0.8
-save_weights = True
+mask_display_threshold = 0.9
+save_weights = False
+save_losses = True
 
 image_size = (348, 464)  # H, W
 num_keypoints = 19
@@ -33,8 +35,8 @@ class_names = ['background', 'implanted_mouse', 'implanted_bat', 'implanted_rump
                # , 'extra_mouse', 'extra_bat', 'extra_rump'
                ]
 
+loss_history = []  # Store loss values for CSV
 colors = [(1, 0, 0), (.1, .6, .1), (0, 0, 1)]  #R, G, B: Must match number of class names
-# NMS = non-max suppression
 
 # Attention Mechanism
 class AttentionLayer(nn.Module):
@@ -144,7 +146,6 @@ def train_model(train_loader, val_loader, num_classes, num_epochs=num_epochs):
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
     model = SkeletonGuidedMaskRCNN(num_classes=num_classes).to(device)
-    #model = SkeletonGuidedMaskRCNN(num_classes=num_classes).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
 
     for epoch in range(num_epochs):
@@ -173,7 +174,10 @@ def train_model(train_loader, val_loader, num_classes, num_epochs=num_epochs):
             optimizer.step()
             total_loss += total_loss.item()
 
-        print(f"Epoch [{epoch + 1}/{num_epochs}], Loss: {total_loss / len(train_loader)}")
+        avg_loss = total_loss / len(train_loader)
+        print(f"Epoch [{epoch + 1}/{num_epochs}], Loss: {avg_loss}")
+        # Store loss history for CSV
+        loss_history.append([epoch + 1, avg_loss.item()])
 
         if (epoch + 1) % validate_every_n_epochs == 0:
             model.eval()
@@ -216,6 +220,14 @@ def train_model(train_loader, val_loader, num_classes, num_epochs=num_epochs):
         model_save_path = os.path.join(save_to_dir, f'sg-mrcnn_epochs_{num_epochs}.pth')
         torch.save(model.state_dict(), model_save_path)
         print(f"Model weights saved to {model_save_path}")
+
+    if save_losses is True:
+        loss_csv_path = os.path.join(save_to_dir, f"main_loss_{num_epochs}.csv")
+        # Save loss history to CSV
+        with open(loss_csv_path, mode="w", newline="") as file:
+            writer = csv.writer(file)
+            writer.writerow(["Epoch", "Loss"])  # Write header
+            writer.writerows(loss_history)  # Write epoch, loss pairs
 
     return model
 

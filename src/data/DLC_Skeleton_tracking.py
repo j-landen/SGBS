@@ -5,13 +5,13 @@ project_name = "DLC_thermography"
 username = "jlanden"
 #list_videos = ['video1_path', 'video2_path', 'video3_path']
 model_num = 1
-config_path = 'F:\DLC_thermography_solo-JL-2024-11-19\config.yaml'
-video_directory = r'F:\DLC_thermography_solo-JL-2024-11-19\videos'  # Replace with the directory containing your videos
+config_path = 'F:\DLC_thermography-JLanden-2024-07-09\config.yaml'
+video_directory = r'F:\DLC_thermography-JLanden-2024-07-09\videos'  # Replace with the directory containing your videos
 videotype='.avi'
 
 def train_and_evaluate(config_path, model_num, max_iterations):
-    #dlc.create_multianimaltraining_dataset(config_path)
-    #dlc.train_network(config_path, shuffle=model_num, maxiters=max_iterations, gputouse=0, allow_growth=True)
+    dlc.create_multianimaltraining_dataset(config_path)
+    dlc.train_network(config_path, shuffle=model_num, maxiters=max_iterations, gputouse=0, allow_growth=True)
     dlc.evaluate_network(config_path, gputouse=0, plotting=True)
     dlc.extract_save_all_maps(config_path, shuffle=model_num,  gputouse=0)
 

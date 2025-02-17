@@ -350,13 +350,13 @@ def save_temperature_stats(images, predictions, temperature_array, frameID, thre
             results.append({
                 'Frame': frameID,
                 'Label': label,
-                'Mean_box_temperature': mean_box_temp,
-                'SD_box_temperature': std_box_temp,
-                'Min_box_temperature': min_box_temp,
-                'Max_box_temperature': max_box_temp,
-                'Mean_mask_temperature': mean_mask_temp,
-                'SD_mask_temperature': std_mask_temp,
-                'Min_mask_temperature': min_mask_temp,
-                'Max_mask_temperature': max_mask_temp
+                'Mean_box': mean_box_temp,
+                'SD_box': std_box_temp,
+                'Min_box': min_box_temp,
+                'Max_box': max_box_temp,
+                'Mean_mask': mean_mask_temp,
+                'SD_mask': std_mask_temp,
+                'Min_mask': min_mask_temp,
+                'Max_mask': max_mask_temp
             })
         return results

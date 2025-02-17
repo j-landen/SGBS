@@ -6,10 +6,9 @@ from torchvision.transforms import ToTensor
 from tqdm import tqdm
 import pandas as pd
 
-
-from Data_alignment import prepare_keypoints_for_analysis
+from src.data.Data_alignment import prepare_keypoints_for_analysis
 from SG_MaskRCNN_train import SkeletonGuidedMaskRCNN, class_names, num_classes, colors
-from utils import keypoints_to_heatmaps, visualize_prediction_images, filter_duplicate_classes, tiff2temp, \
+from src.utils.utils import keypoints_to_heatmaps, visualize_prediction_images, filter_duplicate_classes, tiff2temp, \
     save_temperature_stats
 
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"  # Ignore
@@ -17,17 +16,17 @@ os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"  # Ignore
 # Define directories
 csv_directory = r'F:\DLC_thermography-JLanden-2024-07-09\videos' # Keypoints from DLC
 analysis_directory = r'F:\Segmentation\analyze_input' # Images to be analyzed
-save_to_dir = r'F:\Segmentation\results_12-05-24_BS8_solo' # Where output is saved
+save_to_dir = r'F:\Segmentation\results_01-31-25_BS8_solo' # Where output is saved
 temperature_folder = r'F:\Seq_results' # Folder where seq_process output is saved
 
 # Path to saved weights
-weights_path = os.path.join(save_to_dir, 'sg-mrcnn_epochs_500.pth')
+weights_path = os.path.join(save_to_dir, 'sg-mrcnn_epochs_1000.pth')
 
 visualize = True  # Whether you would like images to be saved or not (Default = True)
-visualize_every_n_images = 100 # IF visualize = true, subset # of images saved
+visualize_every_n_images = 500 # IF visualize = true, subset # of images saved
 save_predictions_txt = False  # Whether you would like predictions to be saved to csv file (Default = True)
 combine_predictions_temp = True # Whether you would like temp for each body part saved as csv
-mask_display_threshold = 0.8
+mask_display_threshold = 0.9
 
 def load_model(weights_path, num_classes):
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
@@ -107,7 +106,7 @@ def analyze_images(model, video_name, image_folder, keypoints_loader, save_to_di
 
         # Visualize and save results (implement your visualization function)
         if visualize is True:
-            if (frame_num + 1) % visualize_every_n_images == 0:
+            if frame_num % visualize_every_n_images == 0:
                 visualize_prediction_images(
                     images=image_tensor,
                     predictions=predictions,
@@ -120,8 +119,6 @@ def analyze_images(model, video_name, image_folder, keypoints_loader, save_to_di
                     keypoints=keypoints,
                     threshold=threshold
                 )
-            else:
-                continue
 
         if save_predictions_txt is True:
             save_predictions_to_json(predictions, save_to_dir, videoID=video_name, frameID=image_filename)
@@ -136,7 +133,7 @@ def analyze_images(model, video_name, image_folder, keypoints_loader, save_to_di
     if combine_predictions_temp is True:
         # Subset temperature data based on predictions
         os.makedirs(f"{save_to_dir}/temp_combined/", exist_ok=True)
-        output_csv = f"{save_to_dir}/temp_combined/{video_name}.csv"
+        output_csv = f"{save_to_dir}/temp_combined/temp_{video_name}.csv"
 
         # Save all results to a single CSV file
         df = pd.DataFrame(combined_temp_stats)
