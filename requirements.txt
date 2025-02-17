@@ -1,0 +1,12 @@
+torch
+torchvision
+torchaudio
+numpy
+pandas
+matplotlib
+Pillow
+scikit-image
+tqdm
+deeplabcut
+imageio
+json5
