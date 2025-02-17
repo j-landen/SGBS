@@ -96,7 +96,7 @@ Use the trained model to analyze images and extract keypoint-enhanced segmentati
 ## **Acknowledgments**
 - **[DeepLabCut](https://deeplabcut.github.io/DeepLabCut/)** for skeleton tracking  
 - **[PyTorch](https://pytorch.org/)** for model implementation  
-- **[Matterport Mask R-CNN](https://github.com/matterport/Mask_RCNN)** for visualization support  
+- **[Matterport Mask R-CNN](https://github.com/matterport/Mask_RCNN)** for visualize package
 
 If you use this project in your research, please cite it accordingly!  
 
