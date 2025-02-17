@@ -8,17 +8,17 @@ This project integrates **DeepLabCut (DLC)** skeleton tracking with **Mask R-CNN
 ## **Project Structure**
 ```
 /sgbs
-│── /data/                     # Folder for datasets (if applicable)
+│── /data/                     # Folder for datasets
 │── /src/                      # Source code folder
 │    │── data/                 
-│    │    ├── data_alignment.py   # Align segmentation and skeleton data
+│    │    ├── data_alignment.py         # Align segmentation and skeleton data
 │    │    ├── dlc_skeleton_tracking.py  # DLC-based tracking
 │    │── models/               
-│    │    ├── sg_maskrcnn_train.py   # Model training script
-│    │    ├── sg_maskrcnn_analysis.py # Model evaluation and inference
+│    │    ├── sg_maskrcnn_train.py      # Model training script
+│    │    ├── sg_maskrcnn_analysis.py   # Model evaluation and inference
 │    │── utils/                
-│    │    ├── utils.py         # Helper functions
-│    │    ├── visualize.py     # Visualization utilities
+│    │    ├── utils.py                  # Helper functions
+│    │    ├── visualize.py              # Visualization utilities
 │── /results/                  # Stores outputs (predictions, model weights)
 │── README.md                  # Project documentation
 │── requirements.txt           # Required Python dependencies
@@ -86,7 +86,13 @@ Use the trained model to analyze images and extract keypoint-enhanced segmentati
 - **Temperature Mapping:** Converts `.seq` thermal images to temperature-encoded segmentations.  
 - **Visualization:** Uses `display_instances()` for overlaying keypoints and masks.  
 
-📌 _I have an image I would like to place here._  
+## **Examples**
+![alt text](https://github.com/j-landen/SGBS/blob/master/data/0.PNG?raw=true)  ![alt text](https://github.com/j-landen/SGBS/blob/master/results/0.png?raw=true) 
+![alt text](https://github.com/j-landen/SGBS/blob/master/data/4.PNG?raw=true)  ![alt text](https://github.com/j-landen/SGBS/blob/master/results/4.png?raw=true) 
+
+## **Confirmation of results**
+![alt text](https://github.com/j-landen/SGBS/blob/master/results/comparison_epoch200_log.png?raw=true)
+Comparison between base Mask R-CNN model & new Skeleton-guided bodypart segmentation on thermographic images.
 
 ---
 
