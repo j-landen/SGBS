@@ -8,10 +8,8 @@ This project integrates **DeepLabCut (DLC)** skeleton tracking with **Mask R-CNN
 ## **Project Structure**
 ```
 /sgbs
-│── /docs/                     # Documentation for the project
 │── /data/                     # Folder for datasets (if applicable)
 │── /src/                      # Source code folder
-│    │── __init__.py           # Initializes Python package
 │    │── data/                 
 │    │    ├── data_alignment.py   # Align segmentation and skeleton data
 │    │    ├── dlc_skeleton_tracking.py  # DLC-based tracking
@@ -22,7 +20,6 @@ This project integrates **DeepLabCut (DLC)** skeleton tracking with **Mask R-CNN
 │    │    ├── utils.py         # Helper functions
 │    │    ├── visualize.py     # Visualization utilities
 │── /results/                  # Stores outputs (predictions, model weights)
-│── .gitignore                 # Ignore unnecessary files
 │── README.md                  # Project documentation
 │── requirements.txt           # Required Python dependencies
 ```
