@@ -8,67 +8,6 @@ from skimage.transform import resize
 from visualize_copy import display_instances
 import imageio.v3 as iio
 
-########### Custom loss function to better incorporate keypoint info
-'''class CustomLoss(nn.Module):
-    def __init__(self, lambda_coord=1.0):
-        super(CustomLoss, self).__init__()
-        self.lambda_coord = lambda_coord
-        self.l1_loss = nn.L1Loss()
-
-    def forward(self, outputs, targets):
-        # Extract predicted boxes and keypoints from outputs and targets
-        pred_boxes = [output['boxes'] for output in outputs]
-        true_keypoints = [target['keypoints'] for target in targets]
-
-        # Calculate the center of the predicted boxes
-        pred_centers = [(boxes[:, :2] + boxes[:, 2:]) / 2 for boxes in pred_boxes]
-
-        # Calculate the L1 loss between predicted centers and true keypoints
-        coord_loss = sum(self.l1_loss(pred_center, keypoints) for pred_center, keypoints in zip(pred_centers, true_keypoints))
-
-        # Combine with other losses (e.g., classification, mask loss)
-        total_loss = self.lambda_coord * coord_loss  # Add other losses as needed
-
-        return total_loss
-
-    def compute_keypoint_bbox_penalty(self, bboxes, keypoints):
-        """
-        Compute a penalty for keypoints that fall outside their respective bounding boxes.
-
-        Parameters:
-        - bboxes: Predicted bounding boxes (N x 4 tensor)
-        - keypoints: Predicted keypoints (N x K x 2 tensor, where K is the number of keypoints)
-
-        Returns:
-        - Total keypoint-bounding box penalty
-        """
-
-        penalty = 0.0
-
-        for i in range(len(bboxes)):
-            bbox = bboxes[i]
-            kpts = keypoints[i]
-
-            # Extract the bounding box coordinates (x_min, y_min, x_max, y_max)
-            x_min, y_min, x_max, y_max = bbox
-
-            # Loop over each keypoint and check if it falls within the bounding box
-            for kp in kpts:
-                kp_x, kp_y = kp
-
-                if kp_x < x_min:  # Keypoint is left of the box
-                    penalty += (x_min - kp_x) ** 2
-                if kp_x > x_max:  # Keypoint is right of the box
-                    penalty += (kp_x - x_max) ** 2
-                if kp_y < y_min:  # Keypoint is above the box
-                    penalty += (y_min - kp_y) ** 2
-                if kp_y > y_max:  # Keypoint is below the box
-                    penalty += (kp_y - y_max) ** 2
-
-        return penalty
-'''
-
-
 ########### Convert keypoints to heat maps
 def gaussian_kernel(size, sigma):
     """Creates a 2D Gaussian kernel."""

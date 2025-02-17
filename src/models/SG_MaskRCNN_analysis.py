@@ -16,7 +16,7 @@ os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"  # Ignore
 # Define directories
 csv_directory = r'F:\DLC_thermography-JLanden-2024-07-09\videos' # Keypoints from DLC
 analysis_directory = r'F:\Segmentation\analyze_input' # Images to be analyzed
-save_to_dir = r'F:\Segmentation\results_01-31-25_BS8_solo' # Where output is saved
+save_to_dir = r'F:\Segmentation\results_01-31-25_BS8_solo' # Where you would like model output to be saved
 temperature_folder = r'F:\Seq_results' # Folder where seq_process output is saved
 
 # Path to saved weights
