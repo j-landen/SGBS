@@ -110,5 +110,11 @@ This project is licensed under the **MIT License** – see the [LICENSE](LICENSE
 
 ---
 
-## **Contributing**
-We welcome contributions! Feel free to submit **pull requests** or open **issues**. If you have suggestions or improvements, join the discussion.
+## Citation
+
+If this software is used in a publication, please cite the following manuscript:
+
+Vandendoren Morgane, Landen Jason G, Rogers Joseph F, Killmer Samantha, Alamiri Baizar, Pohlman Celeste, Tattersall Glenn J, Bedford Nicole L, Nelson Adam C (2025) *Oxytocin neurons signal state-dependent transitions from rest to thermogenesis and behavioral arousal in social and non-social settings* eLife 14:RP108212
+
+https://doi.org/10.7554/eLife.108212.3
+
